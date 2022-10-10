@@ -1,0 +1,236 @@
+desc:Djent Cr34t0r
+import ui-lib.jsfx-inc
+
+@init
+offset = ui_setup(0);
+
+last = -1;
+groove_last = -1;
+snare_last = -1;
+index = 0;
+
+paat = 1001;
+sn = 2001;
+hh = 3001;
+
+!hh_rate ? (
+  hh_rate = 1;
+);
+
+!sn_rate ? (
+  sn_rate = 1;
+);
+
+!multiplier ? (
+  multiplier = 1;
+);
+
+@serialize
+file_mem(0, paat, 14);
+file_var(0, multiplier);
+file_var(0, hh_rate);
+file_var(0, sn_rate);
+file_var(0, prevent_overlap);
+
+@gfx 500 500
+function DrawTitleZone()
+(
+  #title = "Djent Cr34t0r";
+  ui_split_toptext(#title);
+  ui_fontsize(40);
+  ui_fontbold(1);
+  ui_text(#title);
+  ui_pop();
+  sprintf(#subtitle, "Tempo %d BPM, Signature %d/%d", tempo, ts_num, ts_denom);
+  ui_split_toptext(#subtitle);
+  ui_text(#subtitle);
+  ui_pop();
+);
+
+function DrawOptionsZone()
+(
+  caption_split_w = 200;
+  ui_split_top(40);
+  ui_pad(0,6);
+  ui_fontsize(22);
+  ui_align(0, 0.5);
+  ui_text("Bar Options");
+  ui_pop();
+
+  ui_split_top(40);
+  ui_pad(2,6);
+  #multiplier_caption = "Bar Multiplier";
+  ui_split_left(caption_split_w);
+  ui_align(0, 0.5);
+  ui_text(#multiplier_caption);
+  ui_pop();
+
+  sprintf(#multiplier_text, "%i", multiplier);
+  multiplier = control_selector(multiplier, #multiplier_text,
+      min(2, multiplier + 1), max(1,  multiplier - 1));
+  ui_pop();
+  
+  ui_split_top(40);
+  ui_pad(0,6);
+  ui_fontsize(22);
+  ui_align(0, 0.5);
+  ui_text("Groove Options");
+  ui_pop();
+
+  ui_split_top(40);
+  ui_pad(2,6);
+  #groove_hh_caption = "Groove HH Ratio";
+  ui_split_left(caption_split_w);
+  ui_align(0, 0.5);
+  ui_text(#groove_hh_caption);
+  ui_pop();
+
+  sprintf(#groove_hh_text, "%i", hh_rate);
+  hh_rate = control_selector(hh_rate, #groove_hh_text,
+      min(2, hh_rate + 1), max(1,  hh_rate - 1));
+  ui_pop();
+
+  ui_split_top(40);
+  ui_pad(2,6);
+  #groove_sn_caption = "Groove Snare Ratio";
+  ui_split_left(caption_split_w);
+  ui_align(0, 0.5);
+  ui_text(#groove_sn_caption);
+  ui_pop();
+
+  sprintf(#groove_sn_text, "%i", sn_rate);
+  sn_rate = control_selector(sn_rate, #groove_sn_text,
+      min(2, sn_rate + 1), max(1,  sn_rate - 1));
+  ui_pop();
+  
+
+  ui_split_top(40);
+
+  ui_split_left(caption_split_w);
+  ui_pad(2,6);
+  ui_align(0, 0.5);
+  ui_text("Prevent Snare / Kick Overlap");
+  ui_pop();
+
+  ui_split_left(60);
+  ui_align(1, 0.5);
+  prevent_overlap = control_switch(prevent_overlap);
+  ui_pop();
+  
+  ui_pop();
+);
+
+function DrawStep(num)
+(
+  ui_border();
+
+  
+  // text header
+  sprintf(#step, "%d", num+1);
+  ui_split_toptext(#step);
+  ui_fontsize(20);
+  index == num ? (
+    ui_color(0, 102, 0, 1);
+    ui_fill(); 
+    ui_color(230, 230, 255, 1);
+  );
+  ui_text(#step);
+  ui_pop();
+  
+  #status = "OFF";
+  ui_split_toptext(#status);
+  paat[num] ? (
+    ui_color(204, 0, 0, 0.9);
+    ui_fill();
+    ui_color(204, 255, 255, 1);
+    #status = "ON";
+  );
+  ui_text(#status);
+  ui_pop();
+
+ ui_split_toptext(#sn);
+  sn[num] ? (
+    ui_color(255, 128, 10, 0.8);
+    ui_fill();
+    ui_color(0, 0, 0, 1);
+    ui_text("(snare)");
+  );
+  ui_pop();
+
+  ui_split_top(32);
+  ui_pad(8,8);
+  paat[num] = control_switch(paat[num]);
+  ui_pop();
+
+  ui_split_next();
+);
+
+
+ui_start();
+
+DrawTitleZone();
+DrawOptionsZone();
+
+ui_split_top(40);
+
+ui_pad(0,6);
+ui_fontsize(22);
+ui_align(0, 0.5);
+ui_text("Bar Sequencer");
+
+ui_split_right(120);
+ui_pad(2,2);
+random = control_button("DjENTheFuCkUp", 1);
+random ? (
+  beat = 0;
+  while (beat < ts_num * multiplier) (
+    paat[beat] = (rand(10) % 2 == 0);
+    beat += 1;
+  );
+);
+ui_pop();
+ui_pop();
+
+ui_pad(8,12);
+ui_split_leftratio(1/(ts_num * multiplier));
+beat = 0;
+while (beat < ts_num * multiplier) (
+  DrawStep(beat);
+  beat += 1;
+);
+ui_pop();
+
+@block
+function set_sn(index) (
+  beat = 0;
+  while (beat < ts_num * multiplier) (
+    sn[beat] = beat == index;
+    beat += 1;
+  );
+);
+
+
+position = floor(beat_position * multiplier);  
+range = ts_num * multiplier;
+index = position % range;
+
+groove_tick = beat_position % ts_denom;
+(groove_tick != groove_last) && play_state ? (
+  // HH
+  (groove_tick + 2) % hh_rate == 0 ? (
+    midisend(0, $x90, 24 , 127);
+  );
+  // SN
+  (groove_tick + 2) % (4 * sn_rate) == 0 ? (
+    set_sn(index);
+    snare_last = index;
+    midisend(0, $x90, 40 , 127);
+  );
+  groove_last = groove_tick;
+);
+
+(position != last) && play_state ? (
+  paat[index] && (!prevent_overlap || snare_last != index) ? midisend(0, $x90, 36, 127);
+  last = position; 
+);
+
