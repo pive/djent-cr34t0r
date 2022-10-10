@@ -1,0 +1,1269 @@
+{
+	"title": "ui-lib.jsfx-inc",
+	"text": "This is the API documentation for JSFX UI library.\n\nFor more information, see: https://github.com/geraintluff/jsfx-ui-lib",
+	"html": "<p>This is the API documentation for JSFX UI library.  It is also available as an <a href=\"https://stash.reaper.fm/v/32955/ui-lib.zip\">interactive JSFX plugin</a>.</p><p>For more information, see <a href=\"https://github.com/geraintluff/jsfx-ui-lib\">GitHub</a> or the <a href=\"https://forums.cockos.com/showthread.php?t=181055\">Cockos forum topic</a>.",
+	"children": [
+		{
+			"title": "Introduction",
+			"text": "You should read the getting-started tour first (see GitHub), which explains some important concepts such as the viewport stack.\n\nHowever, here are a few short examples so you know what you're dealing with:",
+			"children": [
+				{
+					"title": "Hello World",
+					"text": "Here's a simple Hello World example.\n\nWe import the library in the header, and in @init we allocate it some of the memory buffer. It returns the first unused memory slot. In @gfx, we always call ui_start() first, to reset the UI state.\n\nThen, we call ui_text() to draw some text to the screen.",
+					"displayCode": "desc:JSFX UI: Hello World\nimport ui-lib.jsfx-inc\n\n@init\nfreemem = ui_setup(0);\n\n@gfx\nui_start();\nui_text(\"Hello, world!\");",
+					"code": "ui_text(\"Hello World\");",
+					"screenshot": "images/hello-world.png"
+				},
+				{
+					"title": "Ignoring all layout",
+					"text": "While this library is designed to help you lay out your GUI, it's possible to ignore all the \"viewport\" stuff, and just use the rich controls, separate from everything else.\n\nThe key is to use ui_set_rect() or ui_push_rect() - this explicitly sets the dimensions of the viewport, which all the controls use to draw themselves.\n\n(Do check out the layout stuff, though, in case it's useful.)",
+					"html": "<p>While this library is designed to help you lay out your GUI, it's possible to ignore all the \"viewport\" stuff, and just use the rich controls, separate from everything else.</p><p>The key is to use <a href=\"#api-ui_set_rect-4\">ui_set_rect()</a> or <a href=\"#api-ui_push_rect-4\">ui_push_rect()</a> - this explicitly sets the dimensions of the viewport, which all the controls use to draw themselves.</p></p>(Do check out the layout stuff, though, in case it's useful.)</p>",
+					"displayCode": "desc:JSFX UI: No Layout\nimport ui-lib.jsfx-inc\n\n@init\nfreemem = ui_setup(0);\nstrcpy(#text, \"button text\");\n\n@gfx\nui_start();\n\n// Set the viewport\nui_set_rect(20, 20, 200, 50);\n// Draw a control\ncontrol_button(#text);\n\n// And again\nui_set_rect(20, 100, 50, 50);\nvalue = control_dial(value, 0, 1);\n\n// And again\nui_set_rect(20, 180, 200, 50);\ninputstate = control_textinput(#text, inputstate);",
+					"code": "left = ui_left();top = ui_top();// Set the viewport\nui_set_rect(left + 20, top + 20, 200, 50);\n// Draw a control\ncontrol_button(#text);\n\n// And again\nui_set_rect(left + 20, top + 100, 50, 50);\nvalue = control_dial(value, 0, 1);\n\n// And again\nui_set_rect(left + 20, top + 180, 200, 50);\ninputstate = control_textinput(#text, inputstate);",
+					"return": [{"name": "#text", "start": "button text"}, {"name": "value", "start": 0}],
+					"screenshot": "images/no-layout.png"
+				}
+			]
+		},
+		{
+			"title": "The basics",
+			"text": "Any function named ui_*() attempts to be less opinionated about display.  These functions handle layout, colours, basic text and mouse/keyboard interaction.",
+			"children": [
+				{
+					"title": "Setup, screens and errors",
+					"text": "These functions provide a framework for everything else in the library.",
+					"children": [
+						{
+							"api": {
+								"function": "ui_setup",
+								"args": [{"type": "pointer", "name": "freemem", "default": 0}],
+								"return": {"type": "pointer", "name": "new_freemem"}
+							},
+							"text": "This method sets up a section of the memory buffer for use by the UI library.\n\nYou must call this in @init, before any other UI code.",
+							"displayCode": "@init\n\n//Unused section of memory buffer\nfreemem = 0;\n\n// Returns end of allocated block (first unused index)\nfreemem = ui_setup(freemem);"
+						},
+						{
+							"api": [
+								{
+									"function": "ui_start",
+									"args": [{"name": "default_screen", "type": "id", "text": "default screen ID"}],
+									"return": null
+								},
+								{
+									"function": "control_start",
+									"args": [{"name": "default_screen", "type": "id", "text": "default screen ID"}, {"name": "theme", "type": "enum", "enum": ["default", "tron", "black"]}],
+									"return": null
+								}
+							],
+							"text": "These methods resets the UI state for the start of each frame.  You must call one of these in @gfx, before any other UI code.\n\nThe default_screen variable is a screen identifier - see ui_screen().\n\ncontrol_start() has an additional \"theme\" parameter, which must be a string constant, one of: \"default\", \"tron\" or \"black\".",
+							"displayCode": "@gfx\n\nui_start(\"main\");\n\n//Or:\n@gfx\n\ncontrol_start(\"main\", \"tron\")",
+							"screenshot": ["images/themes/default.png", "images/themes/tron.png", "images/themes/black.png"]
+						},
+						{
+							"api": {
+								"function": "ui_screen",
+								"args": [],
+								"return": {"name": "screen_id", "type": "id", "text": "current screen ID"}
+							},
+							"text": "This method returns the current screen ID, a unique identifier for that screen.  Use this to determine which screen you should draw.\n\nEven if you only have one screen, you should use this so that you can get error messages or other info using ui_system().\n\nThe screen ID is treated as a number, but the best screen IDs are string constants - all identical string constants are represented by the same number, and it makes your code more readable.",
+							"displayCode": "@gfx\n\nui_start(\"main\");\n\nui_screen() == \"main\" ? (\n\t/* draw your main screen */\n) : ui_system();"
+						},
+						{
+							"api": {
+								"function": "ui_screen_open",
+								"args": [{"name": "screen_id", "type": "id"}],
+								"return": null
+							},
+							"text": "This method opens a new screen on top of the stack of screens.\n\nThe screen stack is limited to 10 layers deep.",
+							"displayCode": "@gfx\n\nui_start(\"main\");\n\nui_screen() == \"main\" ? (\n\tcontrol_button(\"open screen\") ? (\n\t\tui_screen_open(\"secondary\");\n\t);\n) : ui_screen() == \"secondary\" ? (\n\t/* draw second screen */\n) : ui_system();"
+						},
+						{
+							"api": {
+								"function": "ui_screen_close",
+								"args": [],
+								"return": null
+							},
+							"text": "This function closes the current screen.",
+							"displayCode": "@gfx\n\nui_start(\"main\");\n\nui_screen() == \"main\" ? (\n\tcontrol_button(\"open screen\") ? (\n\t\tui_screen_open(\"secondary\");\n\t);\n) : ui_screen() == \"secondary\" ? (\n\tcontrol_button(\"close screen\") ? (\n\t\tui_screen_close();\n\t);\n) : ui_system();"
+						},
+						{
+							"api": {
+								"function": "ui_screen_level",
+								"args": [],
+								"return": {"type": "int", "name": "depth", "min": 0}
+							},
+							"text": "This function tells you how many screens deep you are in your current stack.  The top level is 0."
+						},
+						{
+							"api": [
+								{
+									"function": "ui_screen_arg",
+									"args": [{"type": "int", "name": "index", "min": 0, "max": 9}, {"name": "value"}],
+									"return": null
+								},
+								{
+									"function": "ui_screen_arg",
+									"args": [{"type": "int", "name": "index", "min": 0, "max": 9}],
+									"return": {"name": "value"}
+								}
+							],
+							"text": "Sets or gets the screen argument at a given index.  If you pass in two arguments, it sets the value.  If you only pass in one, it returns the value.\n\nWhen setting values for a new screen, this must be called *after* ui_screen_open(), otherwise it will set the arguments for the current screen instead.",
+							"displayCode": "// Read argument for current screen\nfoobar = ui_screen_arg(0);\n\n// Open new screen with argument\nshould_open_screen ? (\n\tui_screen_open(\"screen2\");\n\tui_screen_arg(0, foobar);\n);"
+						},
+						{
+							"api": [
+								{
+									"function": "ui_system",
+									"args": [],
+									"return": null
+								},
+								{
+									"function": "control_system",
+									"args": [],
+									"return": null
+								}
+							],
+							"text": "These methods provide system screens.\n\nui_system() provides a basic error display (for unrecognised screen IDs, or errors due to incorrect use of the UI library), which is useful for developing and bugfixing.\n\ncontrol_system() provides an additional screen: \"control.prompt\", as well as a slightly prettier error screen.",
+							"displayCode": "@gfx\n\nui_start(\"main\");\n\nui_screen() == \"main\" ? (\n\t/* draw your main screen */\n) : ui_system();"
+						},
+						{
+							"title": "The \"control.prompt\" screen",
+							"text": "This is a screen ID provided by control_system().  It provides a convenient way to prompt the user for text entry.\n\nThe screen takes two arguments: a mutable string, and a title for the popup.",
+							"code": "control_button(\"Open text prompt\") ? (\n\tui_screen_open(\"control.prompt\");\n\tui_screen_arg(0, #entered_text);\n\tui_screen_arg(1, \"Prompt title\");\n);",
+							"return": {"type": "text", "name": "#entered_text", "default": "text prompt result"},
+							"screenshot": "images/control-prompt-screen.png"
+						}
+					]
+				},
+				{
+					"title": "The viewport stack",
+					"text": "The library keeps an internal stack of viewport/drawing states.  These include viewport position (area of the screen that is currently being drawn to), colours, fonts, and so on.\n\nSome functions modify the current drawing state (such as changing colour), but layout is generally done by pushing a new viewport/state onto the stack with the desired modifications.\n\nWhen a state is popped off the stack, the active drawing state (e.g. viewport position, colours) return to their previous values.\n\nIn the code examples, we use indentation to help clarify the current depth of the stack.",
+					"children": [
+						{
+							"title": "Pushing, popping and splitting",
+							"children": [
+								{
+									"api": [
+										{
+											"function": "ui_push"
+										},
+										{
+											"function": "ui_pop"
+										}
+									],
+									"text": "ui_push() pushes a new viewport/state onto the stack.  The new state is a copy of the previous state, but changes to this new state do not affect the previous state.\n\nui_pop() removes the top later of the viewport/state stack.",
+									"code": "// stack starts with just 1 state\n\nui_push();\n\t// stack is now 2 levels deep\n\tui_color(255, 0, 255);\n\tui_border(); // draws in purple\nui_pop();\n// stack is now 1 deep again\n\n// The colour change above applied\n// to the state we popped off,\n// so this draws in default colour\nui_text(\"some text\");",
+									"screenshot": "images/ui_push.png"
+								},
+								{
+									"api": [
+										{
+											"function": "ui_push_clip",
+											"args": {"name": "opacity", "min": 0, "max": 1, "default": 1}
+										}
+									],
+									"code": "ui_pad(50, 50);\n\nui_push_clip(opacity);\n\t// Draw circles across the whole screen\n\tui_color(0, 255, 0);\n\tgfx_y = 0;\n\twhile (gfx_y < gfx_h + 30) (\n\t\tgfx_x = (gfx_y*0.5)%35;\n\t\twhile (gfx_x < gfx_w + 30) (\n\t\t\tgfx_circle(gfx_x, gfx_y, 15, 1);\n\t\t\tgfx_x += 35;\n\t\t);\n\t\tgfx_y += 30;\n\t);\nui_pop();",
+									"text": "ui_push_clip() behaves a lot like ui_push(), except all changes are clipped to the current viewport, and have a global opacity applied.  If opacity is zero (or omitted), it is taken to be 1.\n\nInternally, this is implemented by copying the current screen state to a new buffer, drawing as normal (to that buffer, using gfx_dest), and then copying back with the appropriate opacity on the matching ui_pop() call.",
+									"screenshot": "images/ui_push_clip.png"
+								},
+								{
+									"title": "Push with height/width",
+									"api": [
+										{
+											"function": "ui_push_height",
+											"args": {"type": "int", "name": "pixels", "min": 0}
+										},
+										{
+											"function": "ui_push_heightratio",
+											"args": {"name": "ratio", "min": 0, "max": 1}
+										},
+										{
+											"function": "ui_push_heighttext",
+											"args": {"type": "text", "name": "#text"}
+										},
+										{
+											"function": "ui_push_width",
+											"args": {"type": "int", "name": "pixels", "min": 0}
+										},
+										{
+											"function": "ui_push_widthratio",
+											"args": {"name": "ratio", "min": 0, "max": 1}
+										},
+										{
+											"function": "ui_push_widthtext",
+											"args": {"type": "text", "name": "#text"}
+										}
+									],
+									"code": "ui_align(0.5, vertical_align);\n\nui_push_height(height);\n\tui_border();\n\tui_align(0.5, 0.5);\n\tui_text(\"viewport has fixed height\");\nui_pop();",
+									"params": [{"type": "int", "name": "height", "min": 0, "max": 150, "default": 50}, {"name": "vertical_align", "min": 0, "max": 1, "default": 0.5}],
+									"text": "These methods let you push a new viewport to the stack, with a specified height/width.  Their position is determined by the current alignment.",
+									"screenshot": "images/ui_push_height.png"
+								},
+								{
+									"title": "Push above/below/left/right",
+									"api": [
+										{
+											"function": "ui_push_above",
+											"args": {"type": "int", "name": "pixels", "min": 0}
+										},
+										{
+											"function": "ui_push_aboveratio",
+											"args": {"name": "ratio", "min": 0, "max": 1}
+										},
+										{
+											"function": "ui_push_abovetext",
+											"args": {"type": "text", "name": "#text"}
+										},
+										{
+											"function": "ui_push_below",
+											"args": {"type": "int", "name": "pixels", "min": 0}
+										},
+										{
+											"function": "ui_push_belowratio",
+											"args": {"name": "ratio", "min": 0, "max": 1}
+										},
+										{
+											"function": "ui_push_belowtext",
+											"args": {"type": "text", "name": "#text"}
+										},
+										{
+											"function": "ui_push_leftof",
+											"args": {"type": "int", "name": "pixels", "min": 0}
+										},
+										{
+											"function": "ui_push_leftofratio",
+											"args": {"name": "ratio", "min": 0, "max": 1}
+										},
+										{
+											"function": "ui_push_leftoftext",
+											"args": {"type": "text", "name": "#text"}
+										},
+										{
+											"function": "ui_push_rightof",
+											"args": {"type": "int", "name": "pixels", "min": 0}
+										},
+										{
+											"function": "ui_push_rightofratio",
+											"args": {"name": "ratio", "min": 0, "max": 1}
+										},
+										{
+											"function": "ui_push_rightoftext",
+											"args": {"type": "text", "name": "#text"}
+										}
+									],
+									"code": "ui_align(0.5, vertical_align);\n\nui_push_height(height);\n\tui_border();\n\tui_align(0.5, 0.5);\n\tui_text(\"viewport has fixed height\");\nui_pop();\n\nui_push_above(height);\n\tui_color(0, 128, 255);\n\tui_border();\n\tui_align(0.5, 0.5);\n\tui_text(\"centered above\");\nui_pop();",
+									"params": [{"type": "int", "name": "height", "min": 0, "max": 150}, {"name": "vertical_align", "min": 0, "max": 1}],
+									"text": "These methods let you push a new viewport to the stack, fitting around the viewport that would be produced by ui_push_height() or ui_push_width().",
+									"screenshot": "images/ui_push_above.png"
+								},
+								{
+									"title": "Splitting the viewport",
+									"api": [
+										{
+											"function": "ui_split_top",
+											"args": {"type": "int", "name": "height", "min": 0}
+										},
+										{
+											"function": "ui_split_bottom",
+											"args": {"type": "int", "name": "height", "min": 0}
+										},
+										{
+											"function": "ui_split_left",
+											"args": {"type": "int", "name": "width", "min": 0}
+										},
+										{
+											"function": "ui_split_right",
+											"args": {"type": "int", "name": "width", "min": 0}
+										}
+									],
+									"params": [{"name": "height", "type": "int", "min": 0, "max": 200, "start": 80}],
+									"text": "The ui_split_*() functions push a new viewport/state onto the stack, anchored to one edge. Simultaneously, they shrink the previous viewport by the same amount, so that the two do not overlap.\n\nThis gives an easy way to carve out sections of the screen to place elements, and then guarantee that other elements will not overlap with them later.",
+									"code": "ui_split_top(height);\n\tui_color(0, 192, 255);\n\tui_border();\n\tui_text(\"split viewport\");\nui_pop();\n\n// Now reduced so they don't overlap\nui_color(215, 0, 215);\nui_border();\nui_text(\"remaining viewport\");",
+									"screenshot": "images/ui_split_top.png"
+								},
+								{
+									"title": "Splitting with ratios",
+									"api": [
+										{
+											"function": "ui_split_topratio",
+											"args": {"name": "ratio", "min": 0, "max": 1}
+										},
+										{
+											"function": "ui_split_bottomratio",
+											"args": {"name": "ratio", "min": 0, "max": 1}
+										},
+										{
+											"function": "ui_split_leftratio",
+											"args": {"name": "ratio", "min": 0, "max": 1}
+										},
+										{
+											"function": "ui_split_rightratio",
+											"args": {"name": "ratio", "min": 0, "max": 1}
+										}
+									],
+									"params": [{"name": "ratio", "min": 0, "max": 1, "start": 0.3}],
+									"text": "The ui_split_*ratio() functions work exactly like the ui_split_*() functions, but with the split point specified as a ratio of the height/width.",
+									"code": "ui_split_topratio(ratio);\n\tui_color(0, 192, 255);\n\tui_border();\n\tui_text(\"split viewport\");\nui_pop();\n\n// Now reduced so they don't overlap\nui_color(215, 0, 215);\nui_border();\nui_text(\"remaining viewport\");",
+									"screenshot": "images/ui_split_topratio.png"
+								},
+								{
+									"title": "Splitting with text sizes",
+									"api": [
+										{
+											"function": "ui_split_toptext",
+											"args": {"type": "text", "name": "#text"}
+										},
+										{
+											"function": "ui_split_bottomtext",
+											"args": {"type": "text", "name": "#text"}
+										},
+										{
+											"function": "ui_split_lefttext",
+											"args": {"type": "text", "name": "#text"}
+										},
+										{
+											"function": "ui_split_righttext",
+											"args": {"type": "text", "name": "#text"}
+										}
+									],
+									"params": [{"name": "#text", "type": "text", "start": "splitting text"}],
+									"text": "The ui_split_*ratio() functions work like the ui_split_*() functions, but the split point is determined by the height/width of a text string, plus some appropriate padding (from ui_padding() and related functions).\n\nIf you supply a negative number, it is equivalent to the empty string (which still has non-zero height).",
+									"code": "ui_split_lefttext(#text);\n\tui_color(0, 192, 255);\n\tui_border();\n\t// Viewport fits the text neatly\n\tui_text(#text);\nui_pop();\n\nui_color(215, 0, 215);\nui_border();\nui_text(\"remaining viewport\");",
+									"screenshot": "images/ui_split_lefttext.png"
+								},
+								{
+									"api": {
+										"function": "ui_split_next"
+									},
+									"code": "ui_split_topratio(1/4);\n\tui_color(255, 0, 0);\n\tui_border();\n\tui_text(\"first section\");\nui_split_next();\n\tui_color(128, 128, 0);\n\tui_border();\n\tui_text(\"second section\");\nui_split_next();\n\tui_color(0, 255, 0);\n\tui_border();\n\tui_text(\"third section\");\nui_split_next();\n\tui_color(0, 128, 255);\n\tui_border();\n\tui_text(\"fourth section\");\nui_pop();",
+									"text": "When you have performed a split using any of the ui_split_*() methods, you can use ui_split_next() to pop the viewport/state from the stack, and then re-split using the same height/width.\n\nThis lets you very easily subdivide into equal-sized pieces, or stack items up from one edge.",
+									"screenshot": "images/ui_split_next.png"
+								}
+							]
+						},
+						{
+							"title": "Get/set the viewport",
+							"text": "If you want to draw a custom control/display, you can query the current viewport so that you can fit into the layout the way that other controls do.  For more complicated layouts, it's sometimes useful to directly set the viewport, so there are functions for that too.\n\nYou can actually use ui_set_rect() to use the built-in rich controls without using the layout/viewport stack at all - see the \"Ignoring all layout\" example in the Introduction.",
+							"children": [
+								{
+									"title": "Get viewport position",
+									"api": [
+										{
+											"function": "ui_left",
+											"return": {"type": "integer", "name": "left_x"}
+										},
+										{
+											"function": "ui_right",
+											"return": {"type": "integer", "name": "right_x"}
+										},
+										{
+											"function": "ui_top",
+											"return": {"type": "integer", "name": "top_y"}
+										},
+										{
+											"function": "ui_bottom",
+											"return": {"type": "integer", "name": "bottom_y"}
+										},
+										{
+											"function": "ui_width",
+											"return": {"type": "integer", "name": "width"}
+										},
+										{
+											"function": "ui_height",
+											"return": {"type": "integer", "name": "height"}
+										}
+									],
+									"return": [],
+									"text": "These return the boundaries and dimensions of the current viewport.\n\nMuch like gfx_w and gfx_h, the right/bottom edges are the first pixels that are *not* included in the viewport.",
+									"code": "ui_align(0, 0.5);\nui_textnumber(ui_left(), \"%i\");\n\nui_align(1, 0.5);\nui_textnumber(ui_right(), \"%i\");\n\nui_align(0.5, 0);\nui_textnumber(ui_top(), \"%i\");\n\nui_align(0.5, 1);\nui_textnumber(ui_bottom(), \"%i\");\n\nsprintf(#size, \"%i x %i\", ui_width(), ui_height());\nui_align(0.5, 0.5);\nui_text(#size);\n\nui_border();",
+									"screenshot": "images/get-viewport.png"
+								},
+								{
+									"title": "Set viewport position",
+									"api": [
+										{
+											"function": "ui_set_rect",
+											"args": [
+												{"type": "int", "name": "left", "start": {"code": "ui_left() + ui_width()*0.25"}, "min": 0, "max": "gfx_w"},
+												{"type": "int", "name": "top", "start": {"code": "ui_top() + ui_height()*0.25"}, "min": 0, "max": "gfx_h"},
+												{"type": "int", "name": "width", "start": {"code": "ui_width()*0.5"}, "min": 0, "max": "gfx_w"},
+												{"type": "int", "name": "height", "start": {"code": "ui_height()*0.5"}, "min": 0, "max": "gfx_h"}
+											]
+										}
+									],
+									"code": "ui_set_rect(left, top, width, height);\n\nui_color(255, 0, 255, 0.5);\nui_fill();",
+									"text": "This explicitly sets the position and dimensions of the current viewport.",
+									"screenshot": "images/ui_set_rect.png"
+								},
+								{
+									"api": [
+										{
+											"function": "ui_push_rect",
+											"args": [
+												{"type": "int", "name": "left", "start": {"code": "ui_left() + ui_width()*0.25"}, "min": 0, "max": "gfx_w"},
+												{"type": "int", "name": "top", "start": {"code": "ui_top() + ui_height()*0.25"}, "min": 0, "max": "gfx_h"},
+												{"type": "int", "name": "width", "start": {"code": "ui_width()*0.5"}, "min": 0, "max": "gfx_w"},
+												{"type": "int", "name": "height", "start": {"code": "ui_height()*0.5"}, "min": 0, "max": "gfx_h"}
+											]
+										}
+									],
+									"code": "ui_push_rect(left, top, width, height);\n\tui_color(255, 0, 255, 0.5);\n\tui_fill();\nui_pop();\n\n// Colour is not changed\nui_text(\"some text\");",
+									"text": "This is equivalent to ui_push() followed by ui_set_rect().  It's useful if what you draw also changes viewport parameters (e.g. colours, fonts), because these are reset on the corresponding ui_pop();."
+								}
+							]
+						},
+						{
+							"title": "Padding",
+							"text": "A few of the UI operations involve a default amount of padding.  For example, the ui_split_*text() add padding to the text measurements to determine the split size.\n\nThis padding size is part of the viewport/drawing state, and is dealt with by these functions.",
+							"children": [
+								{
+									"api": [
+										{
+											"function": "ui_pad",
+											"args": [
+												{"type": "int", "name": "left", "min": 0},
+												{"type": "int", "name": "top", "min": 0},
+												{"type": "int", "name": "right", "min": 0},
+												{"type": "int", "name": "bottom", "min": 0}
+											]
+										},
+										{
+											"function": "ui_pad",
+											"args": [
+												{"type": "int", "name": "leftAndRight", "min": 0},
+												{"type": "int", "name": "topAndBottom", "min": 0}
+											]
+										},
+										{
+											"function": "ui_pad",
+											"args": []
+										}
+									],
+									"params": [
+										{"type": "int", "name": "left", "min": 0, "max": 50, "start": 10},
+										{"type": "int", "name": "top", "min": 0, "max": 50, "start": 10},
+										{"type": "int", "name": "right", "min": 0, "max": 50, "start": 10},
+										{"type": "int", "name": "bottom", "min": 0, "max": 50, "start": 10}
+									],
+									"code": "ui_border();\n\nui_pad(left, top, right, bottom);\n\nui_border();",
+									"text": "This function shrinks the current viewport by the specified amount.\n\nWhen the padding size is omitted (in ui_pad() or in the side-specific variations), it uses a default padding size.  This is also the padding size added when using ui_split_*text().",
+									"screenshot": "images/ui_pad.png"
+								},
+								{
+									"title": "Single-edge padding",
+									"api": [
+										{
+											"function": "ui_padtop",
+											"args": {"name": "pixels", "min": 0}
+										},
+										{
+											"function": "ui_padbottom",
+											"args": {"name": "pixels", "min": 0}
+										},
+										{
+											"function": "ui_padleft",
+											"args": {"name": "pixels", "min": 0}
+										},
+										{
+											"function": "ui_padright",
+											"args": {"name": "pixels", "min": 0}
+										}
+									],
+									"params": [
+										{"type": "int", "name": "left", "min": 0, "max": 50, "start": 10},
+										{"type": "int", "name": "top", "min": 0, "max": 50, "start": 10},
+										{"type": "int", "name": "right", "min": 0, "max": 50, "start": 10},
+										{"type": "int", "name": "bottom", "min": 0, "max": 50, "start": 10}
+									],
+									"code": "ui_border();\n\nui_padleft(left);\nui_padtop(top);\nui_padright(right);\nui_padbottom(bottom);\n\nui_border();",
+									"text": "These functions add padding on one edge only.  If the length is 0, the default padding is used."
+								},
+								{
+									"title": "Setting/getting the padding",
+									"api": [
+										{
+											"function": "ui_padding",
+											"args": [{"type": "int", "name": "padding_horizontal", "min": 0}, {"type": "int", "name": "padding_vertical", "min": 0}]
+										},
+										{
+											"function": "ui_padding_x",
+											"return": {"type": "int", "name": "padding_horizontal", "min": 0}
+										},
+										{
+											"function": "ui_padding_y",
+											"return": {"type": "int", "name": "padding_vertical", "min": 0}
+										}
+									],
+									"params": [{"type": "int", "name": "pad_x", "min": 0, "max": 50, "start": {"code": "ui_padding_x()"}}, {"type": "int", "name": "pad_y", "min": 0, "max": 50, "start": {"code": "ui_padding_y()"}}],
+									"code": "ui_border();\n\nui_padding(pad_x, pad_y);\nui_pad();\n\nui_border();",
+									"text": "These functions allow you to read or set the default padding.  Different themes have different default padding sizes."
+								}
+							]
+						}
+					]
+				},
+				{
+					"title": "Drawing state",
+					"children": [
+						{
+							"title": "Colour",
+							"api": [
+								{
+									"function": "ui_color",
+									"args": [{"type": "int", "name": "red", "min": 0, "max": 255, "start": 192}, {"type": "int", "name": "green", "min": 0, "max": 255, "start": 128}, {"type": "int", "name": "blue", "min": 0, "max": 255, "start": 64}, {"name": "alpha", "min": 0, "max": 1, "start": 1}]
+								},
+								{
+									"function": "ui_color",
+									"args": []
+								}
+							],
+							"text": "This function sets the current drawing colour.  It uses RGB values in the 0-255 range, and an optional alpha in the 0-1 range.\n\nThese values are translated into the gfx_r/gfx_g/gfx_b/gfx_a variables.  If ui_color() is called with no arguments, these variables are recalculated.",
+							"code": "ui_split_topratio(0.5);\n\tui_color(red, green, blue, alpha);\n\tui_fill();\nui_pop();\n\n// This is not affected\nui_text(\"some text\");",
+							"screenshot": "images/ui_color.png"
+						},
+						{
+							"title": "Alignment",
+							"api": [
+								{
+									"function": "ui_align",
+									"args": [{"name": "horizontal", "min": 0, "max": 1, "start": 0.5}, {"name": "vertical", "min": 0, "max": 1, "start": 0.5}]
+								},
+								{
+									"function": "ui_align_x",
+									"return": {"name": "horizontal", "min": 0, "max": 1}
+								},
+								{
+									"function": "ui_align_y",
+									"return": {"name": "vertical", "min": 0, "max": 1}
+								}
+							],
+							"text": "These function set and read the current alignment.  They are ratios, so 0 means left/top, and 1 means right/bottom.\n\nIf an out-of-range value is passed to ui_align(), it is ignored.  This means you can set the alignments independently - e.g. ui_align(0, -1) will change the horizontal alignment to hard-left, but leave the vertical alignment unchanged.",
+							"code": "ui_align(horizontal, vertical);\nui_text(\"aligned text\");",
+							"screenshot": ["images/ui_align-1.png", "images/ui_align-2.png"]
+						},
+						{
+							"title": "Fonts",
+							"api": [
+								{
+									"function": "ui_font",
+									"args": [{"type": "text", "name": "face", "start": "Comic Sans MS"}, {"type": "int", "name": "size", "min": 8, "max": 100, "start": 24}, {"type": "bool", "name": "bold", "start": 0}, {"type": "bool", "name": "italics", "start": 0}]
+								},
+								{
+									"function": "ui_fontface",
+									"args": [{"type": "text", "name": "face", "start": "Comic Sans MS"}]
+								},
+								{
+									"function": "ui_fontsize",
+									"args": [{"type": "int", "name": "size", "min": 8, "max": 100, "start": 16}]
+								},
+								{
+									"function": "ui_fontsize",
+									"return": [{"type": "int", "name": "size", "min": 8, "max": 100, "start": 16}]
+								},
+								{
+									"function": "ui_fontbold",
+									"args": [{"type": "bool", "name": "bold", "start": 0}]
+								},
+								{
+									"function": "ui_fontitalic",
+									"args": [{"type": "bool", "name": "italics", "start": 0}]
+								},
+								{
+									"function": "ui_font",
+									"args": []
+								}
+							],
+							"text": "Specify the font parameters, individually or all at once.\n\nThe UI library uses font index 16, and configures this accordingly.  ui_font() called with no arguments re-configures this font, in case it has been changed.",
+							"code": "ui_font(#face, size, bold, italics);\n\nui_text(\"Hello, world!\");",
+							"screenshot": "images/ui_font.png"
+						}
+					]
+				},
+				{
+					"title": "Drawing",
+					"text": "Although the default colours vary, these drawing functions are theme-independent.",
+					"children": [
+						{
+							"api": {
+								"function": "ui_fill",
+								"args": []
+							},
+							"text": "Fills the viewport with the current colour.",
+							"screenshot": "images/ui_fill.png"
+						},
+						{
+							"api": {
+								"function": "ui_image_fill",
+								"args": [{"name": "image", "text": "image buffer index"}, {"name": "alpha", "type": "float", "min": 0, "max": 1, "default": 1}]
+							},
+							"text": "Fills the viewport with an image, scaled and cropped to fill the whole area.\n\nThe image index is the number used in the \"filename:\" declaration at the top (or the index of an off-screen buffer).",
+							"displayCode": "ui_image_fill(0);"
+						},
+						{
+							"title": "ui_border() and others",
+							"titleHtml": "<code>ui_border()</code> and others",
+							"api": [
+								{"function": "ui_border"},
+								{"function": "ui_border_top"},
+								{"function": "ui_border_bottom"},
+								{"function": "ui_border_left"},
+								{"function": "ui_border_right"}
+							],
+							"text": "Draws a border in the current colour.",
+							"screenshot": "images/ui_border.png"
+						},
+						{
+							"title": "Plotting graphs",
+							"api": [
+								{
+									"function": "ui_graph",
+									"args": [
+										{"type": "pointer", "name": "buffer"},
+										{"type": "int", "name": "count", "min": 1},
+										{"type": "int", "name": "offset", "min": 0, "default": 0, "text": "offset within the circular buffer"},
+										{"name": "min_y"},
+										{"name": "max_y"}
+									]
+								},
+								{
+									"function": "ui_graph",
+									"args": [
+										{"type": "pointer", "name": "buffer"},
+										{"type": "int", "name": "count", "min": 1},
+										{"type": "int", "name": "offset", "min": 0},
+										{"type": "int", "name": "wrap_length", "min": 1, "text": "length of circular buffer (defaults to == count)"},
+										{"name": "min_y"},
+										{"name": "max_y"}
+									]
+								},
+								{
+									"function": "ui_graph_step",
+									"args": [
+										{"type": "pointer", "name": "buffer"},
+										{"type": "int", "name": "count", "min": 1},
+										{"type": "int", "name": "step", "min": 1},
+										{"type": "int", "name": "offset", "default": 0, "min": 0},
+										{"name": "min_y"},
+										{"name": "max_y"}
+									]
+								},
+								{
+									"function": "ui_graph_step",
+									"args": [
+										{"type": "pointer", "name": "buffer"},
+										{"type": "int", "name": "count", "min": 1},
+										{"type": "int", "name": "step", "min": 1},
+										{"type": "int", "name": "offset", "min": 0},
+										{"type": "int", "name": "wrap_length", "min": 1},
+										{"name": "min_y"},
+										{"name": "max_y"}
+									]
+								}
+							],
+							"params": [
+								{"name": "min_y", "min": -2, "max": 0, "start": -1},
+								{"name": "max_y", "min": 0, "max": 2, "start": 1},
+								{"type": "int", "name": "offset", "min": 0, "max": 15, "start": 0}
+							],
+							"code": "i = 0;\nwhile (i < api_buffer_length) (\n\tapi_buffer[i] = sin((i/api_buffer_length*2)*2*$pi);\n\ti += 1\n);\n\nui_graph(api_buffer, api_buffer_length, min_y, max_y);\n\nui_color(0, 192, 255);\nui_graph_step(api_buffer, api_buffer_length>>6, 64, offset, min_y, max_y);\n\n",
+							"displayCode": "ui_graph(buffer, 1024, min_y, max_y);\n\nui_color(0, 192, 255);\nui_graph_step(buffer, 16, 64, offset, min_y, max_y);",
+							"text": "Plots a graph from a buffer.  \"offset\" sets the starting point, treating the buffer as circular. \"wrap_length\" is for when the circular buffer is longer than \"count\".\n\nui_graph() chooses a step size so that not too many points are drawn per horizontal pixel.  If you need to draw every point, use ui_graph_step() with step=1.\n\nIf min_y and max_y are the same, the graph is centered around that value, and auto-scaled to fit the data.",
+							"screenshot": "images/ui_graph.png"
+						},
+						{
+							"api": {
+								"function": "ui_reserve_image",
+								"args": {"type": "int", "name": "buffer_index", "min": 0, "max": 127}
+							},
+							"text": "The UI library uses some of the offscreen buffers (0-127) for its own use.  If there are any buffers (or loaded images) that you are also using, you can notify the UI library so that it avoids them.\n\nThe UI library uses buffers from the end (127 downards), so they are unlikely to clash unless you are loading a large number of images or are using offscreen buffers yourself.",
+							"displayCode": "@gfx\n\n// Draw something to buffer #95\ngfx_dest = 95;\ngfx_drawstr(\"foo\");\n\n// Avoid conflict\nui_reserve_image(95);\n\n// This resets gfx_dest, so we're fine\nui_start(\"main\");\n/* etc. */"
+						}
+					]
+				},
+				{
+					"title": "Text",
+					"text": "Although the default fonts/etc. vary, these functions are theme-independent.",
+					"children": [
+						{
+							"api": {
+								"function": "ui_text",
+								"args": {"type": "text", "name": "#text", "start": "here is some text"}
+							},
+							"text": "Draws text into the viewport, using the current alignment.\n\nText not wrapped, but is shrunk to fit the space if necessary.",
+							"screenshot": ["images/ui_text.png", "images/ui_text-scaling.png"]
+						},
+						{
+							"api": [
+								{
+									"function": "ui_wraptext",
+									"args": {"type": "text", "name": "#text", "start": "here is some text"},
+									"return": {"type": "int", "name": "height", "min": 0}
+								},
+								{
+									"function": "ui_wraptext_height",
+									"args": {"type": "text", "name": "#text", "start": "here is some text"},
+									"return": {"type": "int", "name": "height", "min": 0}
+								}
+							],
+							"text": "ui_wraptext() draws text into the viewport, using the current alignment.  Text wraps, but is not shrunk to fit, so may overflow.\n\nui_wraptext_height() measures the text without actually drawing it (which is useful for positioning things around wrapped text).",
+							"displayCode": "height = ui_wraptext(#longtext);",
+							"code": "height = ui_wraptext(\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum molestie facilisis enim at imperdiet. Cras molestie tristique purus ut cursus. Duis sagittis nisl id urna luctus posuere. Duis vel lorem aliquam, condimentum tellus quis, placerat risus. Duis auctor libero ante, nec bibendum ante volutpat ac.\");",
+							"params": [],
+							"return": {"type": "int", "name": "height"},
+							"screenshot": "images/ui_wraptext.png"
+						},
+						{
+							"api": {
+								"function": "ui_texth",
+								"return": {"type": "int", "name": "line_height"}
+							},
+							"text": "Gets the current height of a single line, resetting the gfx_* font parameters if necessary."
+						},
+						{
+							"api": [
+								{
+									"function": "ui_text_width",
+									"args": [{"type": "text", "name": "#text"}],
+									"return": {"type": "int", "name": "text_width"}
+								},
+								{
+									"function": "ui_text_height",
+									"args": [{"type": "text", "name": "#text"}],
+									"return": {"type": "int", "name": "text_height"}
+								}
+							],
+							"params": [{"type": "text", "name": "#text", "default": "input text"}],
+							"code": "text_width = ui_text_width(#text);\ntext_height = ui_text_height(#text);",
+							"return": [{"type": "int", "name": "text_width"}, {"type": "int", "name": "text_height"}],
+							"text": "Measures the width/height of text, resetting the gfx_* font parameters if necessary.\n\nThis will return a non-zero height even for empty strings."
+						},
+						{
+							"api": {
+								"function": "ui_textnumber",
+								"args": [
+									{"name": "number"},
+									{"type": "text", "name": "#format", "start": "%.2f", "default": "%f"}
+								]
+							},
+							"params": {"name": "number", "min": -100, "max": 100, "start": 3.14159265359},
+							"text": "Formats a number using sprintf() formats, and draws it using ui_text().",
+							"screenshot": "images/ui_textnumber.png"
+						},
+						{
+							"api": {
+								"function": "ui_parsenumber",
+								"args": [
+									{"type": "text", "name": "#number_string", "start": "65.2"},
+									{"name": "default", "default": 0}
+								],
+								"return": {"name": "number"}
+							},
+							"text": "This function parses string into a number.\n\nIt stops at the first invalid character, returning the default value if it did not find a valid number first.  Whitespace is ignored."
+						}
+					]
+				},
+				{
+					"title": "User input",
+					"children": [
+						{
+							"title": "Mouse",
+							"text": "For raw mouse state, you can still use mouse_x, mouse_y and mouse_cap.  These functions deal with more complex interactions, like dragging and hovering.\n\nFor any function that takes a \"button index\" argument, it uses the standard JSFX numbers of 1=left, 2=right, 64=middle.  Omitting this argument defaults to 1 (left click).",
+							"children": [
+								{
+									"title": "Mouse position",
+									"api": [
+										{
+											"function": "ui_mouse_x",
+											"return": {"name": "relative_x"}
+										},
+										{
+											"function": "ui_mouse_xratio",
+											"return": {"name": "relative_x"}
+										},
+										{
+											"function": "ui_mouse_y",
+											"return": {"name": "relative_x"}
+										},
+										{
+											"function": "ui_mouse_yratio",
+											"return": {"name": "relative_y"}
+										}
+									],
+									"text": "These functions return the mouse position relative to the current viewport, either in absolute pixels or as a ratio.",
+									"displayCode": "x = ui_mouse_x();\ny = ui_mouse_y();\nx_ratio = ui_mouse_xratio();\ny_ratio = ui_mouse_yratio();",
+									"code": "ui_border();\n\nx = ui_mouse_x();\ny = ui_mouse_y();\nx_ratio = ui_mouse_xratio();\ny_ratio = ui_mouse_yratio();",
+									"return": [{"type": "int", "name": "x"}, {"name": "x_ratio"}, {"type": "int", "name": "y"}, {"name": "y_ratio"}]
+								},
+								{
+									"api": [
+										{
+											"function": "ui_click",
+											"args": {"type": "enum", "name": "button", "enum": [1, 2, 64], "default": 1},
+											"return": {"type": "bool", "name": "pressed"}
+										},
+										{
+											"function": "ui_clickcount",
+											"args": {"type": "enum", "name": "button", "enum": [1, 2, 64], "default": 1},
+											"return": {"type": "int", "name": "count", "min": 0}
+										}
+									],
+									"text": "ui_click() returns whether the user clicked within this viewport, and released within this viewport.  If the mouse moved outside the viewport within this time and then back in again, it still counts as a \"click\".  It returns 0, or the duration of the click.\n\nui_clickcount() can be used to detect double-clicks/triple-clicks/etc.",
+									"code": "ui_click() ? (\n\tui_fill();\n\n\tlast_clickcount = ui_clickcount();\n);",
+									"params": [],
+									"return": [
+										{"name": "last_clickcount", "type": "int", "start": 0}
+									]
+								},
+								{
+									"title": "Mouse movement",
+									"api": [
+										{"function": "ui_mouse_dx", "return": {"name": "dx"}},
+										{"function": "ui_mouse_dy", "return": {"name": "dy"}}
+									],
+									"text": "Returns the mouse movement since the last frame.",
+									"code": "dx = ui_mouse_dx();\ndy = ui_mouse_dy();\n\n// Draw mouse movement\nmx = mouse_x;\nmy = mouse_y;\ngfx_line(mx, my, mx - dx, my - dy);",
+									"return": [{"type": "int", "name": "dx"}, {"type": "int", "name": "dy"}]
+								},
+								{
+									"title": "Mouse-down event",
+									"api": [
+										{
+											"function": "ui_mouse_down",
+											"args": {"type": "enum", "name": "button", "enum": [1, 2, 64], "default": 1},
+											"return": {"type": "bool", "name": "event"}
+										},
+										{
+											"function": "ui_mouse_down_outside",
+											"args": {"type": "enum", "name": "button", "enum": [1, 2, 64], "default": 1},
+											"return": {"type": "bool", "name": "event"}
+										}
+									],
+									"text": "Returns whether the mouse button has just been pressed, either inside the current viewport (ui_mouse_down) or outside (ui_mouse_down_outside).",
+									"code": "event_counter1 += ui_mouse_down(1);\nevent_counter2 += ui_mouse_down(2);\nevent_counter64 += ui_mouse_down(64);",
+									"params": [],
+									"return": [
+										{"type": "int", "name": "event_counter1", "start": 0},
+										{"type": "int", "name": "event_counter2", "start": 0},
+										{"type": "int", "name": "event_counter64", "start": 0}
+									]
+								},
+								{
+									"title": "Mouse-up event",
+									"api": [
+										{
+											"function": "ui_mouse_up",
+											"args": {"type": "enum", "name": "button", "enum": [1, 2, 64], "default": 1},
+											"return": {"type": "bool", "name": "event"}
+										}
+									],
+									"text": "Returns whether the mouse button has just been released, while the mouse is inside the current viewport.",
+									"code": "event_counter1 += ui_mouse_up(1);\nevent_counter2 += ui_mouse_up(2);\nevent_counter64 += ui_mouse_up(64);",
+									"params": [],
+									"return": [
+										{"type": "int", "name": "event_counter1", "start": 0},
+										{"type": "int", "name": "event_counter2", "start": 0},
+										{"type": "int", "name": "event_counter64", "start": 0}
+									]
+								},
+								{
+									"title": "Mouse dragging",
+									"api": [
+										{
+											"function": "ui_drag",
+											"args": {"type": "enum", "name": "button", "enum": [1, 2, 64], "default": 1},
+											"return": {"type": "bool", "name": "drag_time"}
+										},
+										{
+											"function": "ui_drag_x",
+											"args": {"type": "enum", "name": "button", "enum": [1, 2, 64], "default": 1},
+											"return": {"name": "drag_x"}
+										},
+										{
+											"function": "ui_drag_y",
+											"args": {"type": "enum", "name": "button", "enum": [1, 2, 64], "default": 1},
+											"return": {"name": "drag_y"}
+										}
+									],
+									"text": "Returns whether the current viewport is currently being dragged or held-down (mouse-down within the viewport, then moved or held for a period of time).\n\nui_drag() returns either 0, or the time since mouse-down.",
+									"displayCode": "drag_time = ui_drag();\ndrag_x = ui_drag_x();\ndrag_y = ui_drag_y();",
+									"code": "ui_border();\ndrag_time = ui_drag();\ndrag_x = ui_drag_x();\ndrag_y = ui_drag_y();",
+									"params": [],
+									"return": [
+										{"type": "bool", "name": "drag_time"},
+										{"name": "drag_x", "type": "int"},
+										{"name": "drag_y", "type": "int"}
+									]
+								},
+								{
+									"title": "Scroll wheel",
+									"api": [
+										{"function": "ui_scroll_x", "return": {"name": "dx"}},
+										{"function": "ui_scroll_y", "return": {"name": "dy"}}
+									],
+									"text": "Returns the scroll-wheel movement since the last frame.",
+									"code": "dx = ui_scroll_x();\ndy = ui_scroll_y();",
+									"return": [{"type": "int", "name": "dx"}, {"type": "int", "name": "dy"}]
+								},
+								{
+									"api": {"function": "ui_hover", "return": {"type": "bool", "name": "hover"}},
+									"text": "Returns whether the mouse position is inside the current viewport.",
+									"code": "hover = ui_hover();\n\nhover ? ui_fill();"
+								},
+								{
+									"api": {
+										"function": "ui_press",
+										"args": {"type": "enum", "name": "button", "enum": [1, 2, 64], "default": 1},
+										"return": {"type": "bool", "name": "pressed"}
+									},
+									"text": "Whether the user originally clicked within the viewport, and is currently hovering over it with the mouse-button pressed down.\n\nReturns either 0, or the time since the original press.\n\nIf the user clicks and drags away from the viewport, then back into it, that still counts as \"pressing\".",
+									"code": "pressed = ui_press();\n\npressed ? ui_fill();",
+									"params": []
+								},
+								{
+									"title": "Clear the mouse status",
+									"api": {"function": "ui_click_clear"},
+									"displayCode": "ui_click() ? (\n\t//Prevent anyone else from registering this click\n\tui_click_clear();\n)",
+									"text": "Prevents any later code from registering clicks, drags, and so on.  In essence, it release all currently-held mouse buttons, but without triggering any events.\n\nThis is most useful when what's on the screen is about to change - it is done automatically when opening/closing screens, so that the new page does not register any events it shouldn't.\n\nThis does not affect mouse_cap, only the functions available in this UI library."
+								}
+							]
+						},
+						{
+							"title": "Keyboard",
+							"api": [
+								{
+									"function": "ui_key",
+									"return": {"type": "int", "min": 0, "name": "char"}
+								},
+								{
+									"function": "ui_key_printable",
+									"return": {"type": "int", "min": 0, "name": "char"}
+								},
+								{
+									"function": "ui_key_next",
+									"return": {"type": "int", "min": 0, "name": "char"}
+								}
+							],
+							"code": "char = ui_key();\n\nlastchar = char ? char : lastchar;",
+							"return": [{"type": "int", "min": 0, "name": "char"}, {"type": "int", "min": 0, "name": "lastchar"}],
+							"text": "ui_key() returns the char code of the latest unhandled key-press, or 0 if there is none.\n\nui_key() will return the same char code until ui_key_next() is called, or until the next frame (more precisely, the next call to ui_start()).  This lets multiple sections of code \"peek\" at the latest key, and choose whether to ignore it or claim it.\n\nui_key_printable() is similar, but it also returns 0 for non-printable characters.\n\nIf you want to receive the full range of keypresses (including things like space/escape, which normally go to the host), put \"options:want_all_kb\" in the header of your effect."
+						},
+						{
+							"api": {"function": "ui_interacted", "return": {"type": "boolean", "name": "interacted"}},
+							"text": "This function returns whether the user has interacted with this effect since last frame.\n\nInteraction is defined as: pressing/releasing any mouse button or control key, scrolling the mouse wheel, moving the mouse while a button is held down, or pressing a key."
+						}
+					]
+				}
+			]
+		},
+		{
+			"title": "Rich controls",
+			"text": "The functions in this section provide a common set of rich interactive controls.\n\nThey have a distinct visual look (see ui_start()/control_start() for how to choose a theme), and attempt to present consistent interactions (e.g. double-click to reset to default value, drag up/down to adjust dials).",
+			"html": "<p>The functions in this section provide a common set of rich interactive controls.</p><p>They have a distinct visual look (see <a href=\"#api-control_start-2\">control_start()</a> for how to choose a theme), and attempt to present consistent interactions (e.g. double-click to reset to default value, drag up/down to adjust dials).</p>",
+			"children": [
+				{
+					"title": "Screen decoration and layout",
+					"children": [
+						{
+							"api": [
+								{
+									"function": "control_navbar",
+									"args": ["#title"],
+									"return": {"name": "action", "type": "enum", "enum": [0, -1]}
+								},
+								{
+									"function": "control_navbar",
+									"args": ["#title", "#next_title", "next_screen_id"],
+									"return": {"name": "action", "type": "enum", "enum": [0, -1, 1]}
+								}
+							],
+							"text": "Draws a navigation bar at the top of the viewport.  This is probably the first thing you want to draw.\n\nIf this is not the first screen on the screen stack, it automatically adds a \"back\" button which returns to the screen below.  If parameters for the next screen are supplied, a button drawn on the opposite side to the \"back\" button. When pressed, it opens the screen with the given ID.\n\nThe returned action is 0 if nothing was clicked and it expects to stay on this screen, -1 if \"back\" was clicked, and 1 if the next screen was clicked.  These screens will be closed/opened automatically, so you only need to check if you want to perform an additional action (such as saving results or writing screen arguments).  This also means that any screen arguments should be read *before* the call to control_navbar(), or they might be read from the incorrect screen.",
+							"params": [{"name": "#title", "default": "screen title"}, {"name": "#next_title", "default": "screen title"}],
+							"code": "control_navbar(#title, #next_title, \"options\");\n\nui_text(\"screen contents go here\");",
+							"screenshot": "images/control_navbar.png"
+						},
+						{
+							"api": [
+								{
+									"function": "control_dialog",
+									"args": ["#title"],
+									"return": {"name": "action", "type": "enum", "enum": [0, 1]}
+								},
+								{
+									"function": "control_dialog",
+									"args": ["#title", "#ok"],
+									"return": {"name": "action", "type": "enum", "enum": [0, 1]}
+								},
+								{
+									"function": "control_dialog",
+									"args": ["#title", "#ok", "#cancel"],
+									"return": {"name": "action", "type": "enum", "enum": [0, 1, -1]}
+								},
+								{
+									"function": "control_dialog",
+									"args": ["#title", {"name": "width", "type": "int", "min": 0}, {"name": "height", "type": "int", "min": 0}, "#ok", "#cancel"],
+									"return": {"name": "action", "type": "enum", "enum": [0, 1, -1]}
+								}
+							],
+							"text": "Decorates the viewport to be a dialog.  Afterwards, the viewport is inside the area of the dialog.  This is probably the first thing you want to draw inside your screen.\n\nThe returned action is 0 if nothing was clicked and it expects to stay on this screen, -1 if \"cancel\" was clicked, and 1 if \"OK\" was clicked - if either of these is clicked, the screen will close itself, so you only need to check if you want to perform an additional action (such as saving results or writing screen arguments).  This also means that any screen arguments should be read *before* the call to control_navbar(), or they might be read from the incorrect screen.\n\nIf \"cancel\" is omitted, then no cancel button will be displayed.",
+							"params": [{"name": "#title", "default": "screen title"}, {"name": "#ok", "default": "OK"}, {"name": "has_cancel", "type": "bool", "default": 1}, {"name": "#cancel", "default": "cancel"}],
+							"code": "has_cancel ? (\n\tcontrol_dialog(#title, #ok, #cancel);\n) : (\n\tcontrol_dialog(#title, #ok);\n);\n\nui_text(\"dialog contents go here\");",
+							"screenshot": "images/control_dialog.png"
+						},
+						{
+							"api": {"function": "control_group", "args": {"type": "text", "name": "#label", "start": "group label"}},
+							"text": "This draws a labelled group indicator in the current viewport, and adds padding so that elements are placed inside this group.",
+							"code": "control_group(#label);ui_text(\"Control group contents\");",
+							"screenshot": "images/control_group.png"
+						}
+					]
+				},
+				{
+					"title": "Buttons, readouts and switches",
+					"children": [
+						{
+							"api": [
+								{"function": "control_readout", "args": {"type": "text", "name": "#text", "start": "text value"}},
+								{"function": "control_readoutnumber", "args": [{"name": "value"}, {"name": "format", "type": "text", "default": "%f"}]}
+							],
+							"text": "Displays a non-interactive value display (\"inset\" style).",
+							"screenshot": "images/control_readout.png"
+						},
+						{
+							"api": {
+								"function": "control_button",
+								"args": [{"type": "text", "name": "#text", "start": "text value"}, {"type": "bool", "name": "enabled", "default": 1}],
+								"return": {"name": "click"}
+							},
+							"text": "Displays a button (\"enabled\" style).  Triggers on mouse-up, and returns the time since mouse-down, or 0 if there was no click.\n\nIf \"enabled\" is 0, it is drawn using \"disabled\" style, and always returns 0 (ignoring clicks).",
+							"return": [{"name": "click"}, {"name": "click_total"}],
+							"code": "click = control_button(#text, enabled);\nclick_total += click;",
+							"screenshot": "images/control_button.png"
+						},
+						{
+							"api": {
+								"function": "control_selector",
+								"args": ["value", "#text", "next_value", "prev_value"],
+								"return": {"name": "value", "start": 0}
+							},
+							"text": "Displays a selector for switching between a fixed number of values.  If next_value or prev_value are equal to the current value, their corresponding controls are greyed-out.",
+							"params": [],
+							"code": "sprintf(#selector_text, \"option #%i\", value);\n// increment, maximum 10\nnext_value = min(10, value + 1);\n// decrement, minimum 0\nprev_value = max(0, value - 1);\n\nvalue = control_selector(value, #selector_text,\n\t\tnext_value, prev_value);",
+							"screenshot": "images/control_selector.png"
+						},
+						{
+							"api": {
+								"function": "control_switch",
+								"args": {"name": "bool_value", "type": "bool"},
+								"return": {"name": "bool_value", "type": "bool", "start": 1}
+							},
+							"params": [],
+							"text": "Displays an on/off switch for a boolean value.",
+							"screenshot": "images/control_switch.gif"
+						},
+						{
+							"api": {
+								"function": "control_radio",
+								"args": [{"name": "value"}, {"name": "option"}],
+								"return": {"name": "value", "start": 1}
+							},
+							"params": [],
+							"text": "Displays a radio-button control.  This displays as selected if \"option\" and value are the same.  Clicking it sets \"value\" to \"option\".",
+							"code": "ui_split_topratio(1/3);\n\tui_split_right(30);\n\t\tvalue = control_radio(value, 1);\n\tui_pop();\n\tui_text(\"one\");\nui_split_next();\n\tui_split_right(30);\n\t\tvalue = control_radio(value, 2);\n\tui_pop();\n\tui_text(\"two\");\nui_split_next();\n\tui_split_right(30);\n\t\tvalue = control_radio(value, 3);\n\tui_pop();\n\tui_text(\"three\");\nui_pop();",
+							"screenshot": "images/control_radio.gif"
+						}
+					]
+				},
+				{
+					"title": "Sliders",
+					"api": [
+						{
+							"function": "control_slider_left",
+							"args": ["value", "left_value", "right_value", {"name": "curve", "default": 0}, {"name": "default", "default": null}],
+							"return": "value"
+						},
+						{
+							"function": "control_slider_x",
+							"args": ["value", "left_value", "right_value", {"name": "curve", "default": 0}, {"name": "default", "default": null}],
+							"return": "value"
+						},
+						{
+							"function": "control_slider_bottom",
+							"args": ["value", "bottom_value", "top_value", {"name": "curve", "default": 0}, {"name": "default", "default": null}],
+							"return": "value"
+						},
+						{
+							"function": "control_slider_y",
+							"args": ["value", "bottom_value", "top_value", {"name": "curve", "default": 0}, {"name": "default", "default": null}],
+							"return": "value"
+						}
+					],
+					"text": "Draws a horizontal or vertical slider.\n\nThe \"curve\" parameter determines how the visual position of the slider corresponds to the actual values.  Positive values give more accuracy on the left/top side, negative on the right/bottom.  For a logarithmic scale, use curve=log(left_value/right_value).\n\nSliders with a particular side (e.g. \"left\") will show a link between the current value and that side.  control_slider_x() and control_slider_y() will not show that link, but *may* show a link between the current value and the default value, if one is provided.",
+					"params": [],
+					"return": {"name": "value", "start": 0.5},
+					"code": "ui_split_topratio(1/4);\n\tui_split_left(70);\n\t\tui_text(\"curve=0\");\n\tui_pop();\n\tvalue = control_slider_left(value, 0, 1, 0, 0.5);\nui_split_next();\n\tui_split_left(70);\n\t\tui_text(\"curve=2\");\n\tui_pop();\n\tvalue = control_slider_left(value, 0, 1, 2, 0.5);\nui_split_next();\n\tui_split_left(70);\n\t\tui_text(\"curve=-2\");\n\tui_pop();\n\tvalue = control_slider_left(value, 0, 1, -2, 0.5);\nui_split_next();\n\tui_split_left(70);\n\t\tui_text(\"slider_x\");\n\tui_pop();\n\tvalue = control_slider_x(value, 0, 1, 0, 0.5);\nui_pop();",
+					"screenshot": "images/sliders.gif"
+				},
+				{
+					"title": "Dials",
+					"api": [
+						{
+							"function": "control_dial_left",
+							"args": ["value", "left_value", "right_value", {"name": "curve", "default": 0}, {"name": "default", "default": null}],
+							"return": "value"
+						},
+						{
+							"function": "control_dial",
+							"args": ["value", "left_value", "right_value", {"name": "curve", "default": 0}, {"name": "default", "default": null}],
+							"return": "value"
+						},
+						{
+							"function": "control_dial_angle",
+							"args": ["angle", {"name": "default", "default": null}],
+							"return": {"name": "angle", "min": 0, "max": "2*$pi"}
+						},
+						{
+							"function": "control_dial_angle_unit",
+							"args": ["angle", {"name": "default", "default": null}],
+							"return": {"name": "angle", "min": 0, "max": "1"}
+						}
+					],
+					"text": "Draws a rotating dial.  The \"curve\" parameter works the same was as for sliders.\n\nLike sliders, control_dial_left() will show a link between the current value and the left value, and control_slider() will not show that link (but may show a link to the default value).\n\ncontrol_dial_angle() provides a dial that can rotate freely, returning a value between 0 and 2*PI, where 0 is vertical.  control_dial_angle_unit() is similar, but uses values between 0 and 1.",
+					"params": [],
+					"return": [{"name": "value", "start": 0.5}, {"name": "angle", "start": 0}],
+					"code": "ui_split_topratio(1/3);\n\tvalue = control_dial_left(value, 0, 1);\nui_split_next();\n\tvalue = control_dial(value, 0, 1);\nui_split_next();\n\tangle = control_dial_angle(angle, 0);\nui_pop();",
+					"screenshot": "images/dials.png"
+				},
+				{
+					"title": "Text inputs",
+					"text": "JSFX has no built-in text inputs, so this isn't quite as smooth as a native control, but it's functional.  It supports selecting with the mouse (including double-clicking on words) or keyboard.\n\nText inputs pack their internal state into an opaque state value, which you need to store and pass back to it next time, otherwise they won't work.  You should not store this state in presets/sliders, or attempt to manipulate it directly - use the appropriate functions.\n\nIf you want to enter interesting characters (like space) which would otherwise be handled by the host, put \"options:want_all_kb\" in the header of your effect.",
+					"children": [
+						{
+							"api": {
+								"function": "control_textinput",
+								"args": [{"name": "#text", "text": "mutable string"}, {"name": "opaquestate", "text": "opaque value used by the control, initialised to 0"}],
+								"return": "opaquestate"
+							},
+							"params": [],
+							"return": {"name": "#text", "start": "text input value"},
+							"text": "Draws a text input, constantly updating the mutable string #text.",
+							"screenshot": "images/control_textinput.png"
+						},
+						{
+							"api": {
+								"function": "control_textinput_focused",
+								"args": ["opaquestate"],
+								"return": {"name": "hasfocus", "type": "bool"}
+							},
+							"displayCode": "control_textinput_focused(opaquestate) ? (\n\t/* do whatever */\n);",
+							"text": "Returns whether the given text input currently has focus (i.e. is processing keyboard events)."
+						},
+						{
+							"api": {
+								"function": "control_textinput_focus",
+								"args": ["opaquestate"],
+								"return": "opaquestate"
+							},
+							"displayCode": "opaquestate = control_textinput_focus(opaquestate);",
+							"text": "Demand focus for this input element"
+						},
+						{
+							"api": {
+								"function": "control_textinput_unfocus",
+								"args": ["opaquestate"],
+								"return": "opaquestate"
+							},
+							"displayCode": "opaquestate = control_textinput_unfocus(opaquestate);",
+							"text": "Decline focus for this input element"
+						},
+						{
+							"api": {
+								"function": "control_textinput_select",
+								"args": ["opaquestate", {"name": "cursor", "type": "int"}, {"name": "select_end", "type": "int"}],
+								"return": {"name": "opaquestate", "type": "opaquestate"}
+							},
+							"displayCode": "should_select_all ? (\n\tstate = control_textinput_select(state, 0, strlen(#my_text));\n);\n\ncontrol_textinput(#my_text, state);",
+							"text": "Changes the selection in the text input (but not the focus state)."
+						},
+						{
+							"api": [
+								{
+									"function": "control_hidden_text",
+									"args": ["#text"],
+									"return": {"name": "state", "type": "enum", "enum": [0, 1, -1], "text": "whether the control is hidden, displaying, or just closed"}
+								},
+								{
+									"function": "control_hidden_textnumber",
+									"args": ["number", {"name": "#display_format", "default": "%f"}],
+									"return": "number"
+								},
+								{
+									"function": "control_hidden_textnumber",
+									"args": ["number", "display_number", {"name": "#display_format", "default": "%f"}],
+									"return": "number"
+								}
+							],
+							"text": "Draws a control that when inactive displays using ui_text() or ui_textnumber(), but when right-clicked or triple-clicked, displays a text input for editing the value.\n\ncontrol_hidden_text() returns whether it is active: 0 if inactive/hidden, 1 if currently focused, and -1 if it just lost focus (so it drew itself, but does not expect to draw itself next frame).\n\nFor control_hidden_textnumber, if you need to display a different number than the actual value (e.g. due to rounding issues), you can set display_number to a different value from the actual number.",
+							"screenshot": "images/control_hidden_text.gif"
+						}
+					]
+				},
+				{
+					"title": "Drawing your own controls",
+					"text": "No UI library can provide everything, so it provides some ways to draw custom controls that fit into the theme.",
+					"children": [
+						{
+							"title": "Styling for custom controls",
+							"api": [
+								{"function": "control_background_enabled", "args": {"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none", "auto"], "default": "auto"}},
+								{"function": "control_background_disabled", "args": {"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none", "auto"], "default": "auto"}},
+								{"function": "control_background_passive", "args": {"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none", "auto"], "default": "auto"}},
+								{"function": "control_background_inset", "args": {"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none", "auto"], "default": "auto"}},
+								{"function": "control_background_technical", "args": {"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none", "auto"], "default": "auto"}},
+								{"function": "control_finish_enabled", "args": {"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none", "auto"], "default": "auto"}},
+								{"function": "control_finish_disabled", "args": {"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none", "auto"], "default": "auto"}},
+								{"function": "control_finish_passive", "args": {"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none", "auto"], "default": "auto"}},
+								{"function": "control_finish_inset", "args": {"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none", "auto"], "default": "auto"}},
+								{"function": "control_finish_technical", "args": {"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none", "auto"], "default": "auto"}}
+							],
+							"text": "These help you create custom controls that fit into the theme, by drawing a background and an overlay in the appropriate style, including setting an appropriate ui_color().\n\nIf state is omitted (\"auto\"), it is calculated using the current mouse interaction.  However when creating a composite control it's useful to have a shared state (e.g. when any part of the control is pressed, the whole control displays as pressed).",
+							"code": "ui_split_topratio(1/5);\n\tui_pad();\n\tcontrol_background_enabled(state);\n\tui_text(\"enabled\");\n\tcontrol_finish_enabled(state);\nui_split_next();\n\tui_pad();\n\tcontrol_background_disabled(state);\n\tui_text(\"disabled\");\n\tcontrol_finish_disabled(state);\nui_split_next();\n\tui_pad();\n\tcontrol_background_passive(state);\n\tui_text(\"passive\");\n\tcontrol_finish_passive(state);\nui_split_next();\n\tui_pad();\n\tcontrol_background_inset(state);\n\tui_text(\"inset\");\n\tcontrol_finish_inset(state);\nui_split_next();\n\tui_pad();\n\tcontrol_background_technical(state);\n\tui_text(\"technical\");\n\tcontrol_finish_technical(state);\nui_pop();",
+							"params": [{"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none", "auto"], "default": "auto"}],
+							"screenshot": ["images/custom-themed-controls-default.png", "images/custom-themed-controls-tron.png", "images/custom-themed-controls-black.png"]
+						},
+						{
+							"api": {"function": "control_state", "return": {"type": "enum", "name": "state", "enum": ["press", "hover", "drag", "none"]}},
+							"displayCode": "state = control_state();",
+							"code": "ui_border();\nstate = control_state();strcpy(#state, state);",
+							"return": "#state",
+							"text": "This returns the current mouse-interaction state of the current viewport.\n\nThese values match what can be passed into control_background_*() and control_finish_*().  This lets you assemble a composite control that shares a single press/hover/drag state.\n\nReported states are \"press\", \"hover\", \"drag\" and \"none\", in that order of precedence - so if the user has clicked and dragged, but is still within the control (so it counts as a press), then it will report \"press\"."
+						},
+						{
+							"api": {
+								"function": "control_arrow",
+								"args": {"name": "direction", "type": "enum", "enum": ["left", "up", "right", "down"], "default": "down"}
+							},
+							"text": "Draws a triangle in the current viewport, using the current colour.",
+							"screenshot": "images/control_arrow.png"
+						}
+					]
+				}
+			]
+		},
+		{
+			"title": "Retina support",
+			"text": "Support for Retina displays (double-resolution pixels on Macs) can be enabled by setting gfx_ext_retina=1.  If Retina mode is active, the drawing area will be bigger, and mouse positions will be scaled - however, the UI library scales down its viewport/measurements so that it appears to be the same size.\n\nHowever, if you need to draw your own custom controls, you now have a scaling factor to contend with.\n\nThe best way to handle this is ui_retina().\n\nIf called with no argument (or 0), ui_retina() returns the current pixels-scaling value (2 for retina displays, 1 otherwise).  If called with an argument, it sets the pixel scaling value, and changes the viewport appropriately.\n\nBe warned, however, that mouse positions (both mouse_x/mouse_y and functions like ui_mouse_x()) will remain scaled-down, so you might want to save the previous pixel-scaling value and restore it before the mouse-based calculations.\n\nThis state is stored in the viewport/drawing stack, so it will be restored on ui_pop().",
+			"api": [
+				{
+					"function": "ui_retina",
+					"return": {"name": "pixel_scale", "text": "The current pixel-scale"}
+				},
+				{
+					"function": "ui_retina",
+					"args": "new_pixel_scale",
+					"return": {"name": "old_pixel_scale", "text": "the previous pixel scale, before it was changed"}
+				}
+			],
+			"displayCode": "// Reset to 1-to-1 scale\nold_pixel_scale = ui_retina(1);\n\n/* Draw something using viewport */\ngfx_rect(ui_left(), ui_top(), ...);\n\n//Set back to the old one\nui_retina(old_pixel_scale);\n\n/* Logic involving mouse-pointer */\nxratio = ui_mouse_xratio();"
+		}
+	]
+}
